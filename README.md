@@ -15,6 +15,7 @@ Users can enter their VAT number during registration, and it will be validated u
 1. Go to `/wp-login.php?action=register` to create a new user account.
 2. Enter the required details, including the optional **VAT Number** field.
 3. If a VAT number is entered, it will be validated against the VIES database before registration is completed.
+   - For testing purposes, you can use the following VAT Number: FR40303265045 (This is a valid French VAT number that can be used for testing).
 
 ### Updating VAT Information
 1. Log in as an administrator.
