@@ -3,7 +3,7 @@
  * Plugin Name:     VIES VAT Validation Plugin
  * Plugin URI:      
  * Description:     This is a VIES VAT Validation plugin for WordPress.
- * Author:          wp-cli
+ * Author:          Andrew Edera
  * Author URI:      
  * Text Domain:     vies-vat-plugin
  * Domain Path:     /languages
@@ -15,15 +15,14 @@
 function add_vat_number_register_form()
 {
     ?>
-    <p>
-        <label for="vat_number"><?php _e('VAT Number', 'vies-vat-validation'); ?><br />
-            <input type="text" name="vat_number" id="vat_number" class="input" placeholder="XXXXXXXXXXXX" value="<?php if (!empty($_POST['vat_number']))
-                echo esc_attr($_POST['vat_number']); ?>" />
+    <p class="woocommerce-form-row woocommerce-form-row--wide form-row form-row-wide">
+        <label for="vat_number">VAT Number</label>
+        <input type="text" class="woocommerce-Input woocommerce-Input--text input-text" name="vat_number" id="vat_number" autocomplete="vat_number" value="" placeholder="XXXXXXXXXXXX">
     </p>
     <?php
 }
 add_action('register_form', 'add_vat_number_register_form');
-
+add_action('woocommerce_register_form', 'add_vat_number_register_form');
 
 function validate_vat_number_registration($errors, $sanitized_user_login, $user_email)
 {
@@ -35,6 +34,15 @@ function validate_vat_number_registration($errors, $sanitized_user_login, $user_
     return $errors;
 }
 add_filter('registration_errors', 'validate_vat_number_registration', 10, 3);
+
+function wc_validate_vat_number_registration( $username, $email, $validation_errors ) {
+    if (isset($_POST['vat_number']) && !empty($_POST['vat_number'])) {
+        if (validate_vat_number($_POST['vat_number']) === false) {
+            $validation_errors->add('vat_number_error', __('Invalid VAT Number.', 'vies-vat-validation'));
+        }
+    }
+}
+add_action( 'woocommerce_register_post', 'wc_validate_vat_number_registration', 10, 3 );
 
 function save_vat_number($user_id)
 {
@@ -59,14 +67,21 @@ function validate_vat_number($vat_number)
 
     $url = 'https://ec.europa.eu/taxation_customs/vies/rest-api/ms/' . $country_code . '/vat/' . $vat_number;
 
-    $response = wp_remote_get($url);
+    $ch = curl_init();
+    curl_setopt($ch, CURLOPT_URL, $url);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+    
+    $response = curl_exec($ch);
 
-    if (is_wp_error($response)) {
-        return new WP_Error('vies_error', 'There was an error with the request.');
+    if (curl_errno($ch)) {
+        $error_msg = curl_error($ch);
+        curl_close($ch);
+        return new WP_Error('curl_error', $error_msg);
     }
 
-    $data = wp_remote_retrieve_body($response);
-    $data = json_decode($data);
+    curl_close($ch);
+
+    $data = json_decode($response);
 
     if (isset($data->isValid) && $data->isValid) {
         return [
